@@ -467,6 +467,15 @@ class ProvisioningCallbackService {
       return { outcome: 'invalid', message: invalid };
     }
 
+    // A record nothing can come of any more is turned away before its proof costs a round trip.
+    if (
+      so.attributes.status === 'cancelled' ||
+      (so.attributes.status === 'pending' &&
+        new Date(so.attributes.expires_at).getTime() <= Date.now())
+    ) {
+      return { outcome: 'gone' };
+    }
+
     // The token proves the caller was given the launch; the proof says which account the report
     // was sent from. Checked before anything is written, so a report from elsewhere leaves the
     // record waiting for the real one.

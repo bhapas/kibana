@@ -609,6 +609,8 @@ describe('provisioningCallbackService', () => {
       });
       expect(result).toEqual({ outcome: 'gone' });
       expect(soClient.update).not.toHaveBeenCalled();
+      // Nothing can come of the report, so its proof is not worth a round trip to STS.
+      expect(mockedVerify).not.toHaveBeenCalled();
     });
 
     it('is gone for a cancelled record, and audit-logs it', async () => {
@@ -619,6 +621,7 @@ describe('provisioningCallbackService', () => {
       });
       expect(result).toEqual({ outcome: 'gone' });
       expect(soClient.update).not.toHaveBeenCalled();
+      expect(mockedVerify).not.toHaveBeenCalled();
       expect(cloudConnectorService.create).not.toHaveBeenCalled();
       expect(mockedAudit.writeCustomAuditLog).toHaveBeenCalledWith({
         message: 'Provisioning callback report rejected: record expired or cancelled',
