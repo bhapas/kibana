@@ -263,11 +263,13 @@ export const IAC_PROVISIONER_KEY_CHECK_ACTION_EVENT: EventTypeOpts<IacKeyCheckAc
 
 /**
  * How a provisioning callback report proved where it came from: 'verified' by the provider's
- * proof; 'rejected' when the proof did not verify (the report was refused); 'missing' when the
- * report carried none and was accepted as a report of a deployment launched before proofs were
- * sent. The proof becomes required once 'missing' stops being reported.
+ * proof; 'rejected' when the proof did not verify (the report was refused); 'unavailable' when
+ * the proof could not be checked because the provider's endpoint did not answer (nothing was
+ * refused; the deployment retries); 'missing' when the report carried none and was accepted as
+ * a report of a deployment launched before proofs were sent. The proof becomes required once
+ * 'missing' stops being reported.
  */
-export type IacCallbackOriginProof = 'verified' | 'rejected' | 'missing';
+export type IacCallbackOriginProof = 'verified' | 'rejected' | 'unavailable' | 'missing';
 
 export interface IacCallbackReceivedFields {
   provider: string;
@@ -286,7 +288,7 @@ export const IAC_PROVISIONER_CALLBACK_RECEIVED_EVENT: EventTypeOpts<IacCallbackR
       type: 'keyword',
       _meta: {
         description:
-          "Whether the report proved the account it came from: 'verified'; 'rejected' (the proof did not verify and the report was refused); 'missing' (no proof, accepted as a report of a deployment launched before proofs were sent; the proof becomes required once this is no longer reported).",
+          "Whether the report proved the account it came from: 'verified'; 'rejected' (the proof did not verify and the report was refused); 'unavailable' (the proof could not be checked because the provider endpoint did not answer; nothing was refused and the deployment retries); 'missing' (no proof, accepted as a report of a deployment launched before proofs were sent; the proof becomes required once this is no longer reported).",
       },
     },
   },

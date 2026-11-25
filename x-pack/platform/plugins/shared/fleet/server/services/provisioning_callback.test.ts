@@ -772,6 +772,27 @@ describe('provisioningCallbackService', () => {
         transient: true,
       });
       expect(soClient.update).not.toHaveBeenCalled();
+      // Nothing was refused, so neither the metric nor the audit trail records a rejection.
+      expect(mockedReportReceived).toHaveBeenCalledWith({
+        provider: 'aws',
+        originProof: 'unavailable',
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Provisioning callback report [id=cb-1] caller identity could not be checked [reason=sts_unreachable] [detail=TimeoutError]'
+      );
+      expect(mockedAudit.writeCustomAuditLog).toHaveBeenCalledWith({
+        message:
+          'Provisioning callback report deferred: caller identity could not be checked (sts_unreachable)',
+        event: {
+          action: 'provisioning_callback_report',
+          category: ['web'],
+          type: ['error'],
+          outcome: 'unknown',
+        },
+        kibana: { saved_object: { type: PROVISIONING_CALLBACK_SAVED_OBJECT_TYPE, id: 'cb-1' } },
+        labels: { role_arn: ROLE_ARN, stack_arn: STACK_ARN },
+      });
+      expect(JSON.stringify(mockedAudit.writeCustomAuditLog.mock.calls)).not.toContain('rejected');
     });
 
     it('carries the detail of a rejection to the caller result, for the log line', async () => {

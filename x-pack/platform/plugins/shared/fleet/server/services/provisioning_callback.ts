@@ -385,6 +385,13 @@ class ProvisioningCallbackService {
         type: 'denied',
         outcome: 'failure',
       });
+    } else if (result.outcome === 'unverified' && result.transient) {
+      // Nothing was refused: the verifier did not answer, and the deployment retries.
+      this.auditReport(id, input.payload, {
+        message: `Provisioning callback report deferred: caller identity could not be checked (${result.reason})`,
+        type: 'error',
+        outcome: 'unknown',
+      });
     } else if (result.outcome === 'unverified') {
       this.auditReport(id, input.payload, {
         message: `Provisioning callback report rejected: caller identity not verified (${result.reason})`,
@@ -509,13 +516,19 @@ class ProvisioningCallbackService {
       );
       reportIacProvisionerCallbackReceived({
         provider: so.attributes.provider,
-        originProof: verification.verified ? 'verified' : 'rejected',
+        originProof: verification.verified
+          ? 'verified'
+          : verification.transient
+          ? 'unavailable'
+          : 'rejected',
       });
       if (!verification.verified) {
         this.logger.warn(
-          `Provisioning callback report [id=${so.id}] caller identity not verified [reason=${
-            verification.reason
-          }]${verification.detail ? ` [detail=${verification.detail}]` : ''}`
+          `Provisioning callback report [id=${so.id}] caller identity ${
+            verification.transient ? 'could not be checked' : 'not verified'
+          } [reason=${verification.reason}]${
+            verification.detail ? ` [detail=${verification.detail}]` : ''
+          }`
         );
         return {
           outcome: 'unverified',
