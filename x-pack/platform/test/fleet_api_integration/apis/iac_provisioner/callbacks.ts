@@ -284,6 +284,19 @@ export default function (providerContext: FtrProviderContext) {
       expect((await getRecord(item.id)).status).to.be('received');
     });
 
+    it('rejects with 401 a report signed from the same account number in another partition', async () => {
+      const { item, token } = await createCallback();
+      sts.setResponder(() =>
+        callerIdentityResponse(
+          ACCOUNT,
+          CALLBACK_FUNCTION_ARN.replace('arn:aws:', 'arn:aws-us-gov:')
+        )
+      );
+
+      await receive(item.id, token).expect(401);
+      expect((await getRecord(item.id)).status).to.be('pending');
+    });
+
     it('rejects with 401 a report whose signer is in the account but is not the stack callback function', async () => {
       const { item, token } = await createCallback();
       sts.setResponder(() =>

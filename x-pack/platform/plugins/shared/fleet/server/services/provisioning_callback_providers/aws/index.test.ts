@@ -37,6 +37,11 @@ describe('AWS provisioning callback provider', () => {
       expect(aws.reportSchema.validate(REPORT)).toEqual(REPORT);
     });
 
+    it('describes the proof for the API reference', () => {
+      const proof = aws.reportSchema.getPropSchemas().origin_proof.getSchema().describe();
+      expect(proof.flags?.description).toMatch(/signed STS `GetCallerIdentity` request/);
+    });
+
     it.each([
       ['a role that is not an IAM role ARN', { role_arn: 'arn:aws:iam::123456789012:user/x' }],
       ['a stack that is not a CloudFormation stack ARN', { stack_arn: 'arn:aws:s3:::bucket' }],
@@ -61,6 +66,16 @@ describe('AWS provisioning callback provider', () => {
           stack_arn: 'arn:aws:cloudformation:us-east-1:999999999999:stack/elastic/uuid-1',
         })
       ).toBe('role_arn and stack_arn must be in the same AWS account');
+    });
+
+    it('refuses a role and a stack of different partitions', () => {
+      expect(
+        aws.validateReport({
+          ...REPORT,
+          stack_arn:
+            'arn:aws-us-gov:cloudformation:us-gov-west-1:123456789012:stack/elastic/uuid-1',
+        })
+      ).toBe('role_arn and stack_arn must be in the same AWS partition');
     });
   });
 
