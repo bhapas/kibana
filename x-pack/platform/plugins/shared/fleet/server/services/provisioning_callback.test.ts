@@ -1264,6 +1264,9 @@ describe('provisioningCallbackService', () => {
       });
       expect(result).toMatchObject({ outcome: 'received' });
       expect(soClient.update).not.toHaveBeenCalled();
+      // The report is already in Kibana's hands: a lost response is answered again without a
+      // round trip to STS, which could by now refuse a proof that has aged out.
+      expect(mockedVerify).not.toHaveBeenCalled();
     });
 
     it('is a conflict when a different payload arrives after received, and audit-logs the values it refused', async () => {

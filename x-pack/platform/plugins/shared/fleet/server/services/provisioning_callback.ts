@@ -476,6 +476,12 @@ class ProvisioningCallbackService {
       return { outcome: 'gone' };
     }
 
+    // An exact replay of a report already received is answered from the record: the stack is
+    // retrying a lost response, and its proof may by now have aged out at STS.
+    if (so.attributes.status === 'received' && isSamePayload(so.attributes, report)) {
+      return { outcome: 'received', item: toItem(so.id, so.attributes) };
+    }
+
     // The token proves the caller was given the launch; the proof says which account the report
     // was sent from. Checked before anything is written, so a report from elsewhere leaves the
     // record waiting for the real one.

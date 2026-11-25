@@ -199,6 +199,8 @@ export default function (providerContext: FtrProviderContext) {
       // retry, gets the same answer and creates nothing, and different values are refused.
       const again = await receive(item.id, token).expect(200);
       expect(again.body).to.eql({ status: 'received' });
+      // Answered from the record, without another round trip to STS.
+      expect(sts.getRequests()).to.have.length(1);
       await receive(item.id, token, { ...PAYLOAD, role_arn: OTHER_ROLE_ARN }).expect(409);
       const after = await supertest
         .get('/api/fleet/cloud_connectors')
