@@ -208,8 +208,21 @@ const reject = (
   ...(transient ? { transient } : {}),
 });
 
+/**
+ * Error codes STS answers with when it is throttling or failing rather than judging the
+ * signature. The Query protocol reports throttling as `Throttling` with HTTP 400, not 429.
+ */
+const TRANSIENT_STS_ERROR_CODES = ['Throttling', 'ThrottlingException', 'ServiceUnavailable'];
+
+/** The `<Code>` of an STS error response, or undefined when there is none. */
+const parseErrorCode = (xml: string): string | undefined =>
+  /<Code>([A-Za-z]{1,64})<\/Code>/.exec(xml)?.[1];
+
 /** STS is throttling or failing, not answering about the signature: worth a retry. */
-const isTransientStatus = (status: number): boolean => status === 429 || status >= 500;
+const isTransientAnswer = (status: number, code: string | undefined): boolean =>
+  status === 429 ||
+  status >= 500 ||
+  (code !== undefined && TRANSIENT_STS_ERROR_CODES.includes(code));
 
 /**
  * Forwards the signed request to STS and judges the answer against the report: the signer must
@@ -286,7 +299,12 @@ export const verifyCallerIdentity = async (
     signal.dispose();
   }
   if (status !== 200) {
-    return reject('sts_rejected', `http ${status}`, isTransientStatus(status));
+    const code = body === undefined ? undefined : parseErrorCode(body);
+    return reject(
+      'sts_rejected',
+      `http ${status}${code ? ` ${code}` : ''}`,
+      isTransientAnswer(status, code)
+    );
   }
   if (body === undefined) {
     return reject('sts_rejected', `response larger than ${MAX_STS_RESPONSE_BYTES} bytes`);

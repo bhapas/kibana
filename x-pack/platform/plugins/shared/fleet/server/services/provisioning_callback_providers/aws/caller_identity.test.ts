@@ -387,7 +387,39 @@ describe('verifyCallerIdentity', () => {
         '<ErrorResponse><Error><Code>SignatureDoesNotMatch</Code></Error></ErrorResponse>'
       )
     );
-    expect(result).toEqual({ verified: false, reason: 'sts_rejected', detail: 'http 403' });
+    expect(result).toEqual({
+      verified: false,
+      reason: 'sts_rejected',
+      detail: 'http 403 SignatureDoesNotMatch',
+    });
+  });
+
+  it('marks STS throttling as transient, which the Query protocol answers with a 400', async () => {
+    const result = await verify(
+      proofFor(),
+      fakeSts(
+        400,
+        '<ErrorResponse><Error><Type>Sender</Type><Code>Throttling</Code><Message>Rate exceeded</Message></Error></ErrorResponse>'
+      )
+    );
+    expect(result).toEqual({
+      verified: false,
+      reason: 'sts_rejected',
+      detail: 'http 400 Throttling',
+      transient: true,
+    });
+  });
+
+  it('keeps an expired or malformed request final, although STS answers 400 for it too', async () => {
+    const result = await verify(
+      proofFor(),
+      fakeSts(400, '<ErrorResponse><Error><Code>RequestExpired</Code></Error></ErrorResponse>')
+    );
+    expect(result).toEqual({
+      verified: false,
+      reason: 'sts_rejected',
+      detail: 'http 400 RequestExpired',
+    });
   });
 
   it('is rejected when STS redirects, since the redirect is not followed', async () => {
