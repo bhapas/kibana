@@ -55,6 +55,10 @@ const STS_TIMEOUT_MS = 5_000;
 /** A GetCallerIdentity response is a few hundred bytes; reading stops past this. */
 const MAX_STS_RESPONSE_BYTES = 16 * 1024;
 
+/** A header field name (an HTTP token) and a field value that can go on the wire as it is. */
+const HEADER_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const HEADER_VALUE_PATTERN = /^[\t\x20-\x7e\x80-\xff]*$/;
+
 const SIGV4_AUTHORIZATION_PATTERN =
   /^AWS4-HMAC-SHA256 Credential=([^,\s]+), SignedHeaders=([^,\s]+), Signature=[0-9a-f]{64}$/;
 const ASSUMED_ROLE_ARN_PATTERN = /^arn:aws(?:-[a-z]+)*:sts::(\d{12}):assumed-role\/([^/]+)\/(.+)$/;
@@ -277,6 +281,14 @@ export const verifyCallerIdentity = async (
   const notSent = forwardedNames.find((name) => headers[name] === undefined);
   if (notSent) {
     return reject('malformed_authorization', `signed header not sent: ${notSent}`);
+  }
+  // Checked here, so a header the client would refuse to send is a malformed proof and not an
+  // outage of STS.
+  const unsendable = forwardedNames.find(
+    (name) => !HEADER_NAME_PATTERN.test(name) || !HEADER_VALUE_PATTERN.test(headers[name])
+  );
+  if (unsendable) {
+    return reject('malformed_authorization', `header cannot be forwarded: ${unsendable}`);
   }
   const forwarded = Object.fromEntries(forwardedNames.map((name) => [name, headers[name]]));
   let body: string | undefined;

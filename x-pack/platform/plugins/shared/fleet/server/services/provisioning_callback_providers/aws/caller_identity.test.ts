@@ -260,6 +260,27 @@ describe('verifyCallerIdentity', () => {
     expect(sts.calls).toHaveLength(0);
   });
 
+  it.each([
+    ['a value that cannot go on the wire', { 'X-Amz-Date': 'bad\r\nvalue' }, 'x-amz-date'],
+    ['a name that is not a header name', { 'x"y': 'v' }, 'x"y'],
+  ])(
+    'rejects a proof with %s as malformed, without contacting STS and without answering 503',
+    async (_, headers, offending) => {
+      const sts = fakeSts();
+      const signed = offending === 'x"y' ? `${SIGNED_HEADERS};x"y` : SIGNED_HEADERS;
+      const result = await verify(
+        proofFor({ headers: { Authorization: authorization('eu-west-1', signed), ...headers } }),
+        sts
+      );
+      expect(result).toEqual({
+        verified: false,
+        reason: 'malformed_authorization',
+        detail: `header cannot be forwarded: ${offending}`,
+      });
+      expect(sts.calls).toHaveLength(0);
+    }
+  );
+
   it('sends to the configured endpoint instead when one is set', async () => {
     const sts = fakeSts();
     await verifyCallerIdentity(
