@@ -751,6 +751,29 @@ describe('provisioningCallbackService', () => {
       );
     });
 
+    it('says when the proof could not be checked rather than refused, so the route can ask for a retry', async () => {
+      mockRecord(pendingAttrs());
+      mockedVerify.mockResolvedValue({
+        verified: false,
+        reason: 'sts_unreachable',
+        detail: 'TimeoutError',
+        transient: true,
+      });
+
+      const result = await provisioningCallbackService.receive(soClient, 'cb-1', {
+        token: TOKEN,
+        payload: REPORT,
+      });
+
+      expect(result).toEqual({
+        outcome: 'unverified',
+        reason: 'sts_unreachable',
+        detail: 'TimeoutError',
+        transient: true,
+      });
+      expect(soClient.update).not.toHaveBeenCalled();
+    });
+
     it('carries the detail of a rejection to the caller result, for the log line', async () => {
       mockRecord(pendingAttrs());
       mockedVerify.mockResolvedValue({

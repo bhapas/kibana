@@ -876,5 +876,22 @@ describe('Provisioning callback handlers', () => {
       ]);
       expect(JSON.stringify(loggingSystemMock.collect(logger))).not.toContain('AWS4-HMAC-SHA256');
     });
+
+    it('answers 503 when the proof could not be checked, so the stack retries instead of giving up', async () => {
+      mockedService.receive.mockResolvedValue({
+        outcome: 'unverified',
+        reason: 'sts_unreachable',
+        detail: 'TimeoutError',
+        transient: true,
+      });
+
+      await receive(withToken);
+
+      expect(response.customError).toHaveBeenCalledWith({
+        statusCode: 503,
+        body: { message: 'The proof of the sending account could not be checked; retry later' },
+      });
+      expect(response.unauthorized).not.toHaveBeenCalled();
+    });
   });
 });

@@ -358,8 +358,26 @@ describe('verifyCallerIdentity', () => {
       throw Object.assign(new Error('timeout'), { name: 'TimeoutError' });
     });
     const result = await verify(proofFor(), { fetch, calls: [] });
-    expect(result).toEqual({ verified: false, reason: 'sts_unreachable', detail: 'TimeoutError' });
+    expect(result).toEqual({
+      verified: false,
+      reason: 'sts_unreachable',
+      detail: 'TimeoutError',
+      transient: true,
+    });
   });
+
+  it.each([503, 500, 429])(
+    'marks an STS %s as transient, so the caller may retry',
+    async (status) => {
+      const result = await verify(proofFor(), fakeSts(status, ''));
+      expect(result).toEqual({
+        verified: false,
+        reason: 'sts_rejected',
+        detail: `http ${status}`,
+        transient: true,
+      });
+    }
+  );
 
   it('is rejected when STS refuses the signature', async () => {
     const result = await verify(

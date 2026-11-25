@@ -80,7 +80,13 @@ export type CallerIdentityRejection =
 
 export type CallerIdentityVerification =
   | { verified: true; account: string; arn: string }
-  | { verified: false; reason: CallerIdentityRejection; detail?: string };
+  | {
+      verified: false;
+      reason: CallerIdentityRejection;
+      detail?: string;
+      /** The proof was not refused; it could not be checked. The caller may retry. */
+      transient?: boolean;
+    };
 
 export interface CallerIdentityExpectation {
   /** The record the report was received for. */
@@ -193,12 +199,17 @@ const readBounded = async (
 
 const reject = (
   reason: CallerIdentityRejection,
-  detail?: string
-): { verified: false; reason: CallerIdentityRejection; detail?: string } => ({
+  detail?: string,
+  transient?: boolean
+): Exclude<CallerIdentityVerification, { verified: true }> => ({
   verified: false,
   reason,
   ...(detail ? { detail } : {}),
+  ...(transient ? { transient } : {}),
 });
+
+/** STS is throttling or failing, not answering about the signature: worth a retry. */
+const isTransientStatus = (status: number): boolean => status === 429 || status >= 500;
 
 /**
  * Forwards the signed request to STS and judges the answer against the report: the signer must
@@ -270,12 +281,12 @@ export const verifyCallerIdentity = async (
     status = response.status;
     body = await readBounded(response.body, MAX_STS_RESPONSE_BYTES);
   } catch (error) {
-    return reject('sts_unreachable', error instanceof Error ? error.name : undefined);
+    return reject('sts_unreachable', error instanceof Error ? error.name : undefined, true);
   } finally {
     signal.dispose();
   }
   if (status !== 200) {
-    return reject('sts_rejected', `http ${status}`);
+    return reject('sts_rejected', `http ${status}`, isTransientStatus(status));
   }
   if (body === undefined) {
     return reject('sts_rejected', `response larger than ${MAX_STS_RESPONSE_BYTES} bytes`);

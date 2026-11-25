@@ -307,6 +307,21 @@ export default function (providerContext: FtrProviderContext) {
       expect((await getRecord(item.id)).status).to.be('pending');
     });
 
+    it('answers 503 while STS is unavailable, and takes the report once it is back', async () => {
+      const { item, token } = await createCallback();
+      sts.setResponder(() => new Response('', { status: 503 }));
+
+      const unavailable = await receive(item.id, token).expect(503);
+      expect(unavailable.body.message).to.be(
+        'The proof of the sending account could not be checked; retry later'
+      );
+      expect((await getRecord(item.id)).status).to.be('pending');
+
+      sts.reset();
+      await receive(item.id, token).expect(200);
+      expect((await getRecord(item.id)).status).to.be('received');
+    });
+
     it('rejects with 401 when STS refuses the signature', async () => {
       const { item, token } = await createCallback();
       sts.setResponder(() => signatureRejectedResponse());

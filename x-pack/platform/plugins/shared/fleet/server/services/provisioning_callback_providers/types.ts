@@ -19,7 +19,13 @@ import type { ProvisioningCallbackSOAttributes } from '../../types/so_attributes
  */
 export type OriginVerification<Rejection extends string = string> =
   | { verified: true; account: string; principal: string }
-  | { verified: false; reason: Rejection; detail?: string };
+  | {
+      verified: false;
+      reason: Rejection;
+      detail?: string;
+      /** The proof was not refused; it could not be checked (the verifier was unavailable). */
+      transient?: boolean;
+    };
 
 export interface OriginExpectation<Report> {
   /** The record the report was received for. */

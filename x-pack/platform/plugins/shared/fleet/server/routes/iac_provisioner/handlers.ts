@@ -355,6 +355,13 @@ export const receiveProvisioningCallbackHandler: FleetRequestHandler<
     case 'invalid':
       return response.badRequest({ body: { message: result.message } });
     case 'unverified':
+      if (result.transient) {
+        // Nothing was refused: the verifier could not be reached. The stack retries on a 5xx.
+        return response.customError({
+          statusCode: 503,
+          body: { message: 'The proof of the sending account could not be checked; retry later' },
+        });
+      }
       // The reason stays in the log: the caller learns only that its proof was not accepted.
       return response.unauthorized({
         body: { message: 'The report was not signed from the AWS account of the reported role' },

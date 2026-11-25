@@ -92,7 +92,7 @@ export type ProvisioningCallbackReceiveResult =
    * reported role and stack, or the proof was made for another record or other values. The
    * record is left as it was, for a report that does verify.
    */
-  | { outcome: 'unverified'; reason: string; detail?: string };
+  | { outcome: 'unverified'; reason: string; detail?: string; transient?: boolean };
 
 /**
  * Audit log entry for each outcome of a report. The `invalid` and `unverified` messages come from
@@ -515,6 +515,7 @@ class ProvisioningCallbackService {
           outcome: 'unverified',
           reason: verification.reason,
           ...(verification.detail ? { detail: verification.detail } : {}),
+          ...(verification.transient ? { transient: true } : {}),
         };
       }
       this.logger.info(
